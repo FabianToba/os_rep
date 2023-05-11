@@ -21,8 +21,6 @@ int main() {
             } else if (pid1 == 0) {
                 // First child process
                 printf("First child process is running.\n");
-                // Add your code for the first child process here
-                // ...
                 printf("First child process completed.\n");
                 exit(EXIT_SUCCESS);
             }
@@ -34,8 +32,6 @@ int main() {
             } else if (pid2 == 0) {
                 // Second child process
                 printf("Second child process is running.\n");
-                // Add your code for the second child process here
-                // ...
                 printf("Second child process completed.\n");
                 exit(EXIT_SUCCESS);
             }
