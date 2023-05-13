@@ -158,6 +158,53 @@ void directoryOptions(char* dirname, char* options) {
     }
 }
 
+void calculateScore(char* filename) {
+    int num_warnings = 0;
+    int num_errors = 0;
+
+    // Execute script to compile the file and get the number of warnings and errors
+    char command[100];
+    sprintf(command, "gcc -o /dev/null -Wall -Wextra -Werror %s 2>&1", filename);
+
+    FILE* script_output = popen(command, "r");
+    if (script_output == NULL) {
+        printf("Failed to execute script.\n");
+        exit(1);
+    }
+
+    char buffer[256];
+    while (fgets(buffer, sizeof(buffer), script_output) != NULL) {
+        if (strstr(buffer, "warning") != NULL) {
+            num_warnings++;
+        } else if (strstr(buffer, "error") != NULL) {
+            num_errors++;
+        }
+    }
+
+    pclose(script_output);
+
+    // Calculate score based on warnings and errors
+    int score;
+    if (num_errors == 0 && num_warnings == 0) {
+        score = 10;
+    } else if (num_errors > 0) {
+        score = 1;
+    } else {
+        int remaining_warnings = num_warnings > 10 ? 10 : num_warnings;
+        score = 2 + (8 * (10 - remaining_warnings)) / 10;
+    }
+
+    // Write score to grades.txt file
+    FILE* grades_file = fopen("grades.txt", "a");
+    if (grades_file == NULL) {
+        printf("Failed to open grades.txt file.\n");
+        exit(1);
+    }
+
+    fprintf(grades_file, "%s: %d\n", filename, score);
+    fclose(grades_file);
+}
+
 void handleArgument(char* arg) {
     struct stat fileStat;
     if (stat(arg, &fileStat) < 0) {
@@ -191,7 +238,7 @@ void handleArgument(char* arg) {
             scanf("%s", options);
             regularFileOptions(arg, options);
             if (strstr(arg, ".c") != NULL) {
-                //calculateScore(arg); -> in progress
+                calculateScore(arg); 
             } else {
                 // Count the number of lines in the file
                 FILE* file = fopen(arg, "r");
