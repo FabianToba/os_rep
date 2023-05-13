@@ -31,7 +31,8 @@ void regularFileOptions(char* filename, char* options) {
         perror("stat");
         return;
     }
-
+    time_t modifiedTime = fileStat.st_mtime;
+    char* modifiedTimeString = ctime(&modifiedTime);
     for (int i = 1; i < strlen(options); i++) {
         switch (options[i]) {
             case 'n':
@@ -44,7 +45,8 @@ void regularFileOptions(char* filename, char* options) {
                 printf("Hard Link Count: %ld\n", fileStat.st_nlink);
                 break;
             case 'm':
-                printf("Last time the file was modified: %s\n", ctime(&fileStat.st_mtime));
+                 printf("Last modified time: %s", modifiedTimeString);
+                break;
             case 'a':
                 printAccessRights(fileStat.st_mode);
                 break;
@@ -207,7 +209,7 @@ void calculateScore(char* filename) {
 
 void handleArgument(char* arg) {
     struct stat fileStat;
-    if (stat(arg, &fileStat) < 0) {
+    if (lstat(arg, &fileStat) < 0) {
         perror("stat");
         return;
     }
