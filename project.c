@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <time.h> 
 
 void printAccessRights(mode_t mode) {
     printf("Access Rights:\n");
@@ -27,12 +28,10 @@ void printAccessRights(mode_t mode) {
 
 void regularFileOptions(char* filename, char* options) {
     struct stat fileStat;
-    if (stat(filename, &fileStat) < 0) {
+    if (lstat(filename, &fileStat) < 0) {
         perror("stat");
         return;
     }
-    time_t modifiedTime = fileStat.st_mtime;
-    char* modifiedTimeString = ctime(&modifiedTime);
     for (int i = 1; i < strlen(options); i++) {
         switch (options[i]) {
             case 'n':
@@ -45,7 +44,7 @@ void regularFileOptions(char* filename, char* options) {
                 printf("Hard Link Count: %ld\n", fileStat.st_nlink);
                 break;
             case 'm':
-                 printf("Last modified time: %s", modifiedTimeString);
+                printf("Last modified time: %s", ctime(&fileStat.st_mtime));
                 break;
             case 'a':
                 printAccessRights(fileStat.st_mode);
@@ -234,7 +233,6 @@ void handleArgument(char* arg) {
             printf("a:access rights\n");
             printf("l:create symbolic link\n");
             printf("----------------------------------------------------------------------------------\n");
-            printf("Enter the desired options for the directory: ");
             char options[100];
             printf("Enter the desired options for the regular file: ");
             scanf("%s", options);
@@ -271,7 +269,6 @@ void handleArgument(char* arg) {
             printf("t:size of target file\n");
             printf("a:access rights\n");
             printf("----------------------------------------------------------------------------------\n");
-            printf("Enter the desired options for the directory: ");
             printf("Enter the desired options for the symbolic link: ");
             scanf("%s", options);
             symbolicLinkOptions(arg, options);
