@@ -44,8 +44,7 @@ void regularFileOptions(char* filename, char* options) {
                 printf("Hard Link Count: %ld\n", fileStat.st_nlink);
                 break;
             case 'm':
-                printf("Time of Last Modification: %s", ctime(&fileStat.st_mtime));
-                break;
+                printf("Last time the file was modified: %s\n", ctime(&fileStat.st_mtime));
             case 'a':
                 printAccessRights(fileStat.st_mode);
                 break;
@@ -159,22 +158,23 @@ void directoryOptions(char* dirname, char* options) {
     }
 }
 
-int main(int argc, char* argv[]){
-    if(argc<=1){
-        printf("No arguments provided.\n");
-        return 0;
+void handleArgument(char* arg) {
+    struct stat fileStat;
+    if (stat(arg, &fileStat) < 0) {
+        perror("stat");
+        return;
     }
 
-    for (int i = 1; i < argc; i++) {
-        struct stat fileStat;
-        if (stat(argv[i], &fileStat) < 0) {
-            perror("stat");
-            continue;
-        }
+    pid_t child_pid = fork();
 
-        printf("File: %s\n", argv[i]);
-        
-        if (S_ISREG(fileStat.st_mode)) { //REGULAR FILE
+    if (child_pid < 0) {
+        perror("fork");
+        return;
+    } else if (child_pid == 0) {
+        // Child process
+
+        if (S_ISREG(fileStat.st_mode)) {
+            // Regular file
             printf("File Type: Regular File\n");
             printf("--MENU--\n");
             printf("Options:\n");
@@ -189,9 +189,29 @@ int main(int argc, char* argv[]){
             char options[100];
             printf("Enter the desired options for the regular file: ");
             scanf("%s", options);
-            regularFileOptions(argv[i], options);
-        } 
-        else if (S_ISLNK(fileStat.st_mode)) { //SYMBOLIC LINK
+            regularFileOptions(arg, options);
+            if (strstr(arg, ".c") != NULL) {
+                //calculateScore(arg); -> in progress
+            } else {
+                // Count the number of lines in the file
+                FILE* file = fopen(arg, "r");
+                if (file == NULL) {
+                    printf("Failed to open file: %s\n", arg);
+                    exit(1);
+                }
+
+                int line_count = 0;
+                char buffer[256];
+                while (fgets(buffer, sizeof(buffer), file) != NULL) {
+                    line_count++;
+                }
+
+                fclose(file);
+                printf("Number of lines in file %s: %d\n", arg, line_count);
+            }
+        } else if (S_ISLNK(fileStat.st_mode)) {
+            // Symbolic link
+            // Symbolic link
             printf("File Type: Symbolic Link\n");
             char options[100];
             printf("--MENU--\n");
@@ -205,9 +225,14 @@ int main(int argc, char* argv[]){
             printf("Enter the desired options for the directory: ");
             printf("Enter the desired options for the symbolic link: ");
             scanf("%s", options);
-            symbolicLinkOptions(argv[i], options);
-        } 
-        else if (S_ISDIR(fileStat.st_mode)) { //DIRECTORY
+            symbolicLinkOptions(arg, options);
+            // Change permissions of the symbolic link
+            if (chmod(arg, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP) < 0) {
+                perror("chmod");
+                exit(1);
+            }
+        } else if (S_ISDIR(fileStat.st_mode)) {
+            // Directory
             printf("File Type: Directory\n");
             char options[100];
             printf("--MENU--\n");
@@ -218,9 +243,61 @@ int main(int argc, char* argv[]){
             printf("----------------------------------------------------------------------------------\n");
             printf("Enter the desired options for the directory: ");
             scanf("%s", options);
-            directoryOptions(argv[i], options);
+            directoryOptions(arg, options);
+            // Execute command to create a file with .txt extension
+            char txt_file_name[100];
+            sprintf(txt_file_name, "%s/%s_file.txt", arg, arg);
+
+            if (system(NULL) == 0) {
+                printf("Command processor is not available.\n");
+                exit(1);
+            }
+
+            char command[100];
+            sprintf(command, "touch %s", txt_file_name);
+            if (system(command) != 0) {
+                printf("Failed to create .txt file.\n");
+                exit(1);
+            }
         }
-    printf("\n");
-    return 0;
+
+        // Exit the child process with a success status
+        exit(0);
+    } else {
+        // Parent process
+        int status;
+        waitpid(child_pid, &status, 0);
+        if (WIFEXITED(status)) {
+            int exit_code = WEXITSTATUS(status);
+            printf("The process with PID %d has ended with exit code %d.\n", child_pid, exit_code);
+        }
     }
 }
+
+int main(int argc, char* argv[]) {
+    if (argc <= 1) {
+        printf("No arguments provided.\n");
+        return 0;
+    }
+
+    for (int i = 1; i < argc; i++) {
+        pid_t child_pid = fork();
+
+        if (child_pid < 0) {
+            perror("fork");
+            return 1;
+        } else if (child_pid == 0) {
+            // Child process
+            handleArgument(argv[i]);
+            exit(0);
+        }
+    }
+
+    // Wait for all child processes to complete
+    for (int i = 1; i < argc; i++) {
+        wait(NULL);
+    }
+
+    return 0;
+}
+
